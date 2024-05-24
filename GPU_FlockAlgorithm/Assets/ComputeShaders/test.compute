@@ -1,0 +1,16 @@
+#pragma kernel TestCS
+
+#define SIMULATION_BLOCK_SIZE 256
+
+StructuredBuffer<int> _testBuffer;
+
+[numthreads(SIMULATION_BLOCK_SIZE, 1, 1)]
+void TestCS(uint DTid : SV_DispathThredID) // 스레드 전체에서의 고유 ID
+{
+    const uint P_ID = DTid.x; // 인덱스 가져오기
+    
+    int test = _testBuffer[P_ID];
+    
+    int test1 = 10;
+    _testBuffer[P_ID] = test1; // 계산 결과 쓰기
+}
