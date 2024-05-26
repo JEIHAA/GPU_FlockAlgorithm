@@ -1,0 +1,37 @@
+﻿// Boids의 시뮬레이션을 실행하는 ComputeShader
+
+// カーネル関数を指定 커널 함수 지정
+#pragma kernel TestCS  // 速度, 位置を計算 속도, 위치 계산
+
+// Boidデータの構造体
+struct BoidData
+{
+    float3 velocity; // 速度 속도
+    float3 position; // 位置 위치
+};
+
+// スレッドグループのスレッドのサイズ
+// 스레드 그룹 크기
+#define SIMULATION_BLOCK_SIZE 256
+
+// Boidデータのバッファ（読み取り, 書き込み用） Boid 데이터 버퍼 (읽기, 쓰기용)
+RWStructuredBuffer<BoidData> _BoidDataBufferWrite;
+// Boidの操舵力のバッファ（読み取り用） Boid 조향력 버퍼 (읽기용)
+StructuredBuffer<BoidData> _BoidForceBufferRead;
+
+
+
+// 速度, 位置計算用カーネル関数 속도, 위치 계산을 위한 커널 함수
+[numthreads(SIMULATION_BLOCK_SIZE, 1, 1)]
+void TestCS
+(
+	uint3 DTid : SV_DispatchThreadID // スレッド全体で固有のID
+)
+{
+    const unsigned int P_ID = DTid.x; // インデックスを取得
+											           
+    BoidData b = _BoidDataBufferWrite[P_ID]; // 現在のBoidデータを読み込む 현재 Boid 데이터 읽기
+    BoidData force = _BoidForceBufferRead[P_ID]; // 操舵力を読み込む 조향력을 읽기
+	
+    _BoidDataBufferWrite[P_ID] = b; // 計算結果を書き込む 계산결과 쓰기
+}

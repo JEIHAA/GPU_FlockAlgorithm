@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // Boids를 렌더링하는 셰이더를 제어
-[RequireComponent(typeof(GPUBoids))]
+[RequireComponent(typeof(GPUBoids_problem))]
 public class BoidsRender : MonoBehaviour
 {
     // #region, #endregion: 코드 블럭으로 묶기
@@ -14,7 +14,7 @@ public class BoidsRender : MonoBehaviour
 
     #region Script References
     // 스크립트 참조
-    [SerializeField] GPUBoids GPUBoidsScript;
+    [SerializeField] GPUBoids_problem GPUBoidsScript;
     #endregion
 
     #region Built-in Resources
@@ -50,7 +50,8 @@ public class BoidsRender : MonoBehaviour
     private void OnDisable()
     {
         // 인수버퍼 해제
-        if (argsBuffer != null) {
+        if (argsBuffer != null)
+        {
             argsBuffer.Release(); // 버퍼해제. 삭제
         }
         argsBuffer = null;
@@ -58,7 +59,8 @@ public class BoidsRender : MonoBehaviour
     #endregion
 
     #region Private Functions
-    void RenderInstanceMesh() {
+    void RenderInstanceMesh()
+    {
         // 렌더링용 머티리얼이 Null 또는 GPUBoids 스크립트가 Null
         // 또는 GPU 인스턴싱이 지원되지 않으면 처리하지 않음
         if (InstanceMesh == null || GPUBoidsScript == null || !SystemInfo.supportsInstancing) return;
@@ -75,12 +77,11 @@ public class BoidsRender : MonoBehaviour
         // Boid 객체 스케일 설정(초기화)
         InstanceRenderMaterial.SetVector("_ObjectScale", ObjectScale); // 경계 영역 정의
 
-        var bounds = new Bounds(GPUBoidsScript.GetOwnerPos(), GPUBoidsScript.GetStayOwnerRadius());
+        //var bounds = new Bounds(GPUBoidsScript.GetOwnerPos(), GPUBoidsScript.GetStayOwnerRadius());
         // 메쉬를 GPU 인스턴싱하여 그리기
-        Graphics.DrawMeshInstancedIndirect(InstanceMesh, 0, InstanceRenderMaterial, bounds, argsBuffer);
+        //Graphics.DrawMeshInstancedIndirect(InstanceMesh, 0, InstanceRenderMaterial, bounds, argsBuffer);
         // (인스턴싱하는 메쉬, submesh 인덱스, 경계 영역, GPU 인스턴싱을 위한 인수 버퍼)
     }
     #endregion
 }
-
 

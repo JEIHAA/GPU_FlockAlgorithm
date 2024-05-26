@@ -1,10 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
 public class BoidsGameObjectGenerator : MonoBehaviour
 {
-    [SerializeField] private GPUBoids maxObjectNum;
+    [SerializeField] private GPUBoids_problem maxObjectNum;
     [SerializeField] private Transform boidSpawnerParent;
     [SerializeField] private GameObject prefab;
     [SerializeField] private Transform boidsParent;
@@ -20,7 +19,8 @@ public class BoidsGameObjectGenerator : MonoBehaviour
     private void Start()
     {
         Vector3 boidPosition;
-        for (int i = 0; i < maxObjectNum.MaxObjectNum; ++i) {
+        for (int i = 0; i < maxObjectNum.MaxObjectNum; ++i)
+        {
             boidPosition = boidSpawners[SetRandomPosition()].position;
             boidPosition.y = 1.2f;
             boids.Add(Instantiate(prefab, boidPosition, Quaternion.identity, boidsParent));
@@ -36,7 +36,8 @@ public class BoidsGameObjectGenerator : MonoBehaviour
         return randomIdx;
     }
 
-    public List<GameObject> GetBoidsList() {
+    public List<GameObject> GetBoidsList()
+    {
         return boids;
     }
 }
