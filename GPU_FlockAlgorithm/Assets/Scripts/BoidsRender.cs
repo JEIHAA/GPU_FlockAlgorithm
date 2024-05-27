@@ -1,9 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using static GPUBoids;
 
 // Boids를 렌더링하는 셰이더를 제어
-[RequireComponent(typeof(GPUBoids_problem))]
+[RequireComponent(typeof(GPUBoids))]
 public class BoidsRender : MonoBehaviour
 {
     // #region, #endregion: 코드 블럭으로 묶기
@@ -14,7 +15,8 @@ public class BoidsRender : MonoBehaviour
 
     #region Script References
     // 스크립트 참조
-    [SerializeField] GPUBoids_problem GPUBoidsScript;
+    [SerializeField] GPUBoids GPUBoidsScript;
+    [SerializeField] PlayerController player;
     #endregion
 
     #region Built-in Resources
@@ -73,14 +75,21 @@ public class BoidsRender : MonoBehaviour
         argsBuffer.SetData(args);
 
         // Boid 데이터를 저장하는 버퍼를 머티리얼에 설정(초기화)
-        InstanceRenderMaterial.SetBuffer("_BoidDataBuffer", GPUBoidsScript.GetBoidDataBuffer());
-        // Boid 객체 스케일 설정(초기화)
-        InstanceRenderMaterial.SetVector("_ObjectScale", ObjectScale); // 경계 영역 정의
+        InstanceRenderMaterial.SetBuffer("_BoidDataBuffer", GPUBoidsScript.GetBoidDataBuffers());
+        
+/*        BoidData[] debugData = new BoidData[GPUBoidsScript.GetMaxObjectNum()];
+        GPUBoidsScript.GetBoidDataBuffers().GetData(debugData);*/
 
-        //var bounds = new Bounds(GPUBoidsScript.GetOwnerPos(), GPUBoidsScript.GetStayOwnerRadius());
+        // Boid 객체 스케일 설정(초기화)
+        InstanceRenderMaterial.SetVector("_ObjectScale", ObjectScale); 
+        
+        // 경계 영역 정의
+        Bounds bounds = new Bounds(player.gameObject.transform.position, GPUBoidsScript.GetRenderDistance());
+
         // 메쉬를 GPU 인스턴싱하여 그리기
-        //Graphics.DrawMeshInstancedIndirect(InstanceMesh, 0, InstanceRenderMaterial, bounds, argsBuffer);
-        // (인스턴싱하는 메쉬, submesh 인덱스, 경계 영역, GPU 인스턴싱을 위한 인수 버퍼)
+        Graphics.DrawMeshInstancedIndirect(InstanceMesh, 0, InstanceRenderMaterial, bounds, argsBuffer);
+        // (인스턴싱하는 메쉬, submesh 인덱스, 머티리얼, 렌더 영역, GPU 인스턴싱을 위한 인수의 버퍼) 지금은 사용하지 않음
+        // Graphics.RenderMeshIndirect 사용
     }
     #endregion
 }

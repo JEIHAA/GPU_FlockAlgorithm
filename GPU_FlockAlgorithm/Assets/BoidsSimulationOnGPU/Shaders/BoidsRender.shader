@@ -11,7 +11,7 @@
 	SubShader
 	{
 		Tags { "RenderType"="Opaque" }
-		LOD 200
+		LOD 500
 		
 		CGPROGRAM
 		#pragma surface surf Standard vertex:vert addshadow

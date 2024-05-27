@@ -1,0 +1,29 @@
+﻿#pragma kernel TestCS
+
+struct BoidData
+{
+    float3 velocity;
+    float3 position;
+};
+
+#define SIMULATION_BLOCK_SIZE 256
+
+// RWStructuredBuffer로 변경하여 쓰기 가능하도록 함
+RWStructuredBuffer<BoidData> _TestBufferWrite; // 수정: RWStructuredBuffer로 변경
+StructuredBuffer<BoidData> _TestBufferRead;
+
+[numthreads(SIMULATION_BLOCK_SIZE, 1, 1)]
+void TestCS(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    
+    // _TestBufferWrite를 사용하여 BoidData 읽기
+    BoidData boid = _TestBufferRead[index]; // 수정: 읽기 버퍼에서 데이터 가져옴
+    
+    // 속도에 기반하여 위치 업데이트
+    boid.position += boid.velocity;
+    
+    // 업데이트된 데이터를 쓰기 버퍼에 다시 씀
+    _TestBufferWrite[index] = boid; // 수정: 쓰기 버퍼에 데이터 씀
+}
+
