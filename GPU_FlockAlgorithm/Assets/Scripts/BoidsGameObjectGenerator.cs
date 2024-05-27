@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 public class BoidsGameObjectGenerator : MonoBehaviour
 {
-    [SerializeField] private GPUBoids maxObjectNum;
+    //[SerializeField] private GPUBoids maxObjectNum;
+    [SerializeField] private GPU_Go_Sync_Boid maxObjectNum;
     [SerializeField] private Transform boidSpawnerParent;
     [SerializeField] private GameObject prefab;
     [SerializeField] private Transform boidsParent;
@@ -14,25 +15,20 @@ public class BoidsGameObjectGenerator : MonoBehaviour
     private void Awake()
     {
         boidSpawners = boidSpawnerParent.GetComponentsInChildren<Transform>();
-    }
-
-    private void Start()
-    {
         Vector3 boidPosition;
-        int j = 1;
+        int idx;
         for (int i = 0; i < maxObjectNum.MaxObjectNum; ++i)
         {
             //boidPosition = boidSpawners[SetRandomPositionTest()].position;
             //boidPosition = boidSpawners[SetRandomPosition()].position;
-            if (j >= boidSpawners.Length)
-                j = 1;
-            boidPosition = boidSpawners[j].position;
-            j++;
+            idx = SetRandomPositionTest();
+            boidPosition = boidSpawners[idx].position;
             boidPosition.y = 1.2f;
             boids.Add(Instantiate(prefab, boidPosition, Quaternion.identity, boidsParent));
             boids[i].name = "boid" + i;
         }
     }
+    
 
     private int SetRandomPositionTest()
     {

@@ -1,25 +1,23 @@
+using JetBrains.Annotations;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
+    public int OwnerID;
     public float MoveSpeed = 5.0f;
     public GPUBoids boids;
-    private Vector3 renderDistance;
     private Vector3 stayOnwerRadius;
 
     private void Awake()
     {
-        renderDistance = boids.GetRenderDistance();
         //stayOnwerRadius = boids.GetStayOwnerRadius();
     }
 
     private void OnDrawGizmos()
     {
         // 주인 플레이어 근처에 머무는 범위 렌더링
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(transform.position, renderDistance.x);
         Gizmos.color = Color.blue;
         Gizmos.DrawWireSphere(transform.position, stayOnwerRadius.x);
     }

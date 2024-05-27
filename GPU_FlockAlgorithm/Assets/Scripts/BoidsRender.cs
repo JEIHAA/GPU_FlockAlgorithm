@@ -4,7 +4,7 @@ using UnityEngine;
 using static GPUBoids;
 
 // Boids를 렌더링하는 셰이더를 제어
-[RequireComponent(typeof(GPUBoids))]
+//[RequireComponent(typeof(GPUBoids))]
 public class BoidsRender : MonoBehaviour
 {
     // #region, #endregion: 코드 블럭으로 묶기
@@ -15,7 +15,8 @@ public class BoidsRender : MonoBehaviour
 
     #region Script References
     // 스크립트 참조
-    [SerializeField] GPUBoids GPUBoidsScript;
+    //[SerializeField] GPUBoids GPUBoidsScript;
+    [SerializeField] GPU_Go_Sync_Boid GPUBoidsScript; 
     [SerializeField] PlayerController player;
     #endregion
 
@@ -84,7 +85,7 @@ public class BoidsRender : MonoBehaviour
         InstanceRenderMaterial.SetVector("_ObjectScale", ObjectScale); 
         
         // 경계 영역 정의
-        Bounds bounds = new Bounds(player.gameObject.transform.position, GPUBoidsScript.GetRenderDistance());
+        Bounds bounds = new Bounds(new Vector3(0f,0f,0f), GPUBoidsScript.GetRenderDistance());
 
         // 메쉬를 GPU 인스턴싱하여 그리기
         Graphics.DrawMeshInstancedIndirect(InstanceMesh, 0, InstanceRenderMaterial, bounds, argsBuffer);

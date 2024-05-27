@@ -27,10 +27,8 @@ Shader "Custom/BoidsRender"
         // Boid의 구조체
         struct BoidData
         {
-            int ownerID;
-            float3 direction;
             float3 position;
-            float3 targetPos;
+            float3 direction;
         };
 
         // #ifdef : UNITY_PROCEDURAL_INSTANCING_ENABLED가 true라면
@@ -47,8 +45,18 @@ Shader "Custom/BoidsRender"
 
         float3 _ObjectScale; // Boid 객체의 크기
 
+        // 오일러각(라디안)을 회전 행렬로 변환    
         float4x4 eulerAnglesToRotationMatrix(float3 angles){
-            // 오일러각(라디안)을 회전 행렬로 변환    
+            float ch = cos(angles.y); float sh = sin(angles.y); // heading
+            float ca = cos(angles.z); float sa = sin(angles.z); // attitude
+            float cb = cos(angles.x); float sb = sin(angles.x); // bank
+            // RyRxRz (Heading Bank Attitude)
+            return float4x4(
+            ch * ca + sh * sb * sa, -ch * sa + sh * sb * ca, sh * cb, 0,
+            cb * sa, cb * ca, -sb, 0,
+            -sh * ca + ch * sb * sa, sh * sa + ch * sb * ca, ch * cb, 0,
+            0, 0, 0, 1
+            );
         }
 
         // 정점 셰이더
@@ -63,17 +71,21 @@ Shader "Custom/BoidsRender"
 
             // 객체의 좌표에서 월드 좌표를 변환하는 행렬을 정의
             float4x4 object2world = (float4x4)0;
-            // 스케일 값 대입
 
+            // 스케일 값 대입
             object2world._11_22_33_44 = float4(scl.xyz, 1.0); // 행렬의 대각선 요소에 각 x,y,z,1 할당
-            // 속도에서 Y축에 대한 회전을 계산
-            float rotY = atan2(boidData.direction.x, boidData.direction.z);
-            // 속도에서 X축에 대한 회전 산출
-            //float rotX = -atan2(boidData.direction.y / (length(boidData.direction.xyz) + 1e-8)); // +1e-8: 0 나눗셈 방지
-            // 오일러각(라디안)에서 회전 행렬 구하기
-            float4x4 rotMatrix = eulerAnglesToRotationMatrix(float3(0, rotY, 0));
-            // 행렬에 회전 적용
-            object2world = mul(rotMatrix, object2world);
+
+            
+            //속도에서 y축에 대한 회전 계산
+            float roty = atan2(boiddata.direction.x, boiddata.direction.z);
+            //속도에서 x축에 대한 회전 계산
+            float rotx = -atan2(boiddata.direction.y / (length(boiddata.direction.xyz) + 1e-8)); +1e-8: 0 나눗셈 방지
+
+            //오일러각(라디안)에서 회전 행렬 구하기
+            float4x4 rotmatrix = euleranglestorotationmatrix(float3(0, roty, 0));
+            //행렬에 회전 적용
+            object2world = mul(rotmatrix, object2world);
+
             // 행렬에 위치(평행이동)을 적용
             object2world.14_24_34 += pos.xyz;
             
