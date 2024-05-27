@@ -120,7 +120,7 @@ MonoBehaviour:
   m_MinSize: {x: 400, y: 150}
   m_MaxSize: {x: 32384, y: 24288}
   vertical: 0
-  controlID: 113
+  controlID: 119
 --- !u!114 &6
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -146,7 +146,7 @@ MonoBehaviour:
   m_MinSize: {x: 200, y: 150}
   m_MaxSize: {x: 16192, y: 24288}
   vertical: 1
-  controlID: 49
+  controlID: 55
 --- !u!114 &7
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -866,9 +866,9 @@ MonoBehaviour:
   m_PlayAudio: 0
   m_AudioPlay: 0
   m_Position:
-    m_Target: {x: -20.297977, y: 13.912198, z: -16.569143}
+    m_Target: {x: 12.621514, y: 0.96177727, z: 4.5281816}
     speed: 2
-    m_Value: {x: -20.297977, y: 13.912198, z: -16.569143}
+    m_Value: {x: 12.621514, y: 0.96177727, z: 4.5281816}
   m_RenderMode: 0
   m_CameraMode:
     drawMode: 0
@@ -914,13 +914,13 @@ MonoBehaviour:
     m_GridAxis: 1
     m_gridOpacity: 0.5
   m_Rotation:
-    m_Target: {x: -0.30139863, y: -0.43855837, z: 0.1582657, w: -0.83192307}
+    m_Target: {x: 0.13722065, y: -0.18607305, z: 0.027074084, w: 0.9726367}
     speed: 2
-    m_Value: {x: -0.30135065, y: -0.43848854, z: 0.1582405, w: -0.83179057}
+    m_Value: {x: 0.13720639, y: -0.18605371, z: 0.02707127, w: 0.9725356}
   m_Size:
-    m_Target: 0.43303218
+    m_Target: 0.51639897
     speed: 2
-    m_Value: 0.43303218
+    m_Value: 0.51639897
   m_Ortho:
     m_Target: 0
     speed: 2
@@ -982,9 +982,9 @@ MonoBehaviour:
   m_SceneHierarchy:
     m_TreeViewState:
       scrollPos: {x: 0, y: 0}
-      m_SelectedIDs: 
-      m_LastClickedID: 0
-      m_ExpandedIDs: 0a30ffff7e31ffff1c800000388000005a810000e2810000
+      m_SelectedIDs: 60d1fbff
+      m_LastClickedID: -274080
+      m_ExpandedIDs: ee63fcff6631fffffc7f0000fc8000001e810000
       m_RenameOverlay:
         m_UserAcceptedRename: 0
         m_Name: 
@@ -1134,7 +1134,7 @@ MonoBehaviour:
     m_SkipHidden: 0
     m_SearchArea: 1
     m_Folders:
-    - Assets/Scripts
+    - Assets/ComputeShaders
     m_Globs: []
     m_OriginalText: 
     m_ImportLogFlags: 0
@@ -1142,16 +1142,16 @@ MonoBehaviour:
   m_ViewMode: 1
   m_StartGridSize: 16
   m_LastFolders:
-  - Assets/Scripts
+  - Assets/ComputeShaders
   m_LastFoldersGridSize: 16
   m_LastProjectPath: D:\GitHub\GPU_FlockAlgorithm\GPU_FlockAlgorithm
   m_LockTracker:
     m_IsLocked: 0
   m_FolderTreeState:
     scrollPos: {x: 0, y: 0}
-    m_SelectedIDs: 74060000
-    m_LastClickedID: 1652
-    m_ExpandedIDs: 000000000406000000ca9a3b
+    m_SelectedIDs: 8a060000
+    m_LastClickedID: 1674
+    m_ExpandedIDs: 000000000206000000ca9a3b
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -1179,7 +1179,7 @@ MonoBehaviour:
     scrollPos: {x: 0, y: 0}
     m_SelectedIDs: 
     m_LastClickedID: 0
-    m_ExpandedIDs: 0000000004060000
+    m_ExpandedIDs: 0000000002060000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -1206,22 +1206,22 @@ MonoBehaviour:
   m_ListAreaState:
     m_SelectedInstanceIDs: 
     m_LastClickedInstanceID: 0
-    m_HadKeyboardFocusLastEvent: 0
+    m_HadKeyboardFocusLastEvent: 1
     m_ExpandedInstanceIDs: 4abb00006855000000000000aa8c0000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
-      m_Name: 
-      m_OriginalName: 
+      m_Name: Boid
+      m_OriginalName: Boid
       m_EditFieldRect:
         serializedVersion: 2
         x: 0
         y: 0
         width: 0
         height: 0
-      m_UserData: 0
+      m_UserData: 33200
       m_IsWaitingForDelay: 0
       m_IsRenaming: 0
-      m_OriginalEventType: 11
+      m_OriginalEventType: 0
       m_IsRenamingFilename: 1
       m_ClientGUIView: {fileID: 13}
     m_CreateAssetUtility:

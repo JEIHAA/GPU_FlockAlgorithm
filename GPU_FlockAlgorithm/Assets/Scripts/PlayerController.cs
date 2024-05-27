@@ -7,12 +7,12 @@ public class PlayerController : MonoBehaviour
 {
     public int OwnerID;
     public float MoveSpeed = 5.0f;
-    public GPUBoids boids;
+    public GPU_Go_Sync_Boid boids;
     private Vector3 stayOnwerRadius;
 
     private void Awake()
     {
-        //stayOnwerRadius = boids.GetStayOwnerRadius();
+        stayOnwerRadius = boids.GetStayOwnerRadius();
     }
 
     private void OnDrawGizmos()

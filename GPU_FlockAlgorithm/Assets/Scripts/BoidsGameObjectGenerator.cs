@@ -26,6 +26,7 @@ public class BoidsGameObjectGenerator : MonoBehaviour
             boidPosition.y = 1.2f;
             boids.Add(Instantiate(prefab, boidPosition, Quaternion.identity, boidsParent));
             boids[i].name = "boid" + i;
+            boids[i].GetComponent<BoidManager>().BoidID = i;
         }
     }
     

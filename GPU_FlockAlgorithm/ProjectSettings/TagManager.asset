@@ -14,7 +14,7 @@ TagManager:
   - BoidSpawner
   - Boid
   - Player
-  - 
+  - OwnerCheck
   - 
   - 
   - 

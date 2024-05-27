@@ -8,10 +8,14 @@
 // Boid 데이터 구조체
 struct BoidData
 {
-    int ownerID;
     float3 direction;
     float3 position;
-    float3 targetPos;
+};
+
+struct BoidOwner
+{
+    int ownerID;
+    float3 ownerPos;
 };
 
 // 스레드 그룹 크기
@@ -28,8 +32,10 @@ RWStructuredBuffer<BoidData> _BoidDataBufferWrite;
 StructuredBuffer<float3> _BoidForceBufferRead;
 // Boid 조향력 버퍼 (읽기,쓰기용)
 RWStructuredBuffer<float3> _BoidForceBufferWrite;
-
-int _Test;
+// Boid 주인 플레이어 버퍼 (읽기용)
+StructuredBuffer<BoidOwner> _BoidOwnerBufferRead;
+// Boid 주인 플레이어 버퍼 (읽기,쓰기용)
+RWStructuredBuffer<BoidOwner> _BoidOwnerBufferWrite;
 
 int _MaxBoidObjectNum; // Boid 개체 수
 
@@ -46,9 +52,8 @@ float _CohesionWeight; // 응집 가중치
 float _AlignmentWeight; // 정렬 가중치
 float _SeparateWeight; // 분리 가중치
 
-//float4 _OwnerPos; // 주인 플레이어 위치
-//float4 _StayOwnerRadius; // 주인 플레이어 근처에서 머물 범위
-//float _BoundOwnerWeight; // 주인 플레이어 근처에 묶여있는 강도 가중치
+float4 _StayOwnerRadius; // 주인 플레이어 근처에서 머물 범위
+float _BoundOwnerWeight; // 주인 플레이어 근처에 묶여있는 강도 가중치
 
 // 벡터 크기 제한
 float3 Limit(float3 vec, float max)
@@ -57,11 +62,10 @@ float3 Limit(float3 vec, float max)
     return (length > max && length > 0) ? vec.xyz * (max / length) : vec.xyz;
 }
 
-/*
 // 주인 플레이어와 멀어졌을 때 주인 쪽으로의 힘을 반환
-float3 StayOwner(float3 position)
+float3 StayOwner(int P_ID, float3 position)
 {
-    float3 owner = _OwnerPos.xyz;
+    float3 owner = _BoidOwnerBufferRead[P_ID].ownerPos.xyz;
     float3 radius = _StayOwnerRadius.xyz;
     float3 acc = float3(0, 0, 0);
 
@@ -77,11 +81,11 @@ float3 StayOwner(float3 position)
 
     return acc;
 }
-*/
 
 
 // Boid 데이터 저장용 공유 메모리
 groupshared BoidData boid_data[SIMULATION_BLOCK_SIZE];
+groupshared BoidOwner boid_owner[SIMULATION_BLOCK_SIZE];
 
 // 조향능력 계산용 커널 함수
 // numthread(x축에서 실행될 스레드 수, y축, z축): 각 스레드 그룹 내에서 몇 개의 스레드가 실행될지 정의
@@ -100,11 +104,12 @@ void ForceCS
     // P_ID를 buffer배열의 인덱스로 사용하여 현재 스레드가 처리할 boid를 찾음
     float3 P_position = _BoidDataBufferRead[P_ID].position; // 자신의 위치
     float3 P_direction = _BoidDataBufferRead[P_ID].direction; // 자신의 속도
-    float3 P_owner = _BoidDataBufferRead[P_ID].ownerID;
-    float3 P_targetPos = _BoidDataBufferRead[P_ID].targetPos;
+    float3 P_owner = _BoidOwnerBufferRead[P_ID].ownerID;
+    float3 P_targetPos = _BoidOwnerBufferRead[P_ID].ownerPos;
     
     float3 force = float3(0, 0, 0); // 조향력 초기화
     
+    float3 ownerPosSum = P_targetPos;
     float3 cohPosSum = float3(0, 0, 0); // 응집 계산용 위치 누적용 변수
     int cohCount = 0; // 분리할 다른 개체 수
     float3 aliVelSum = float3(0, 0, 0); // 정렬 계산용 위치 누적용 변수
@@ -118,11 +123,13 @@ void ForceCS
     {
         // SIMULATION_BLOCK_SIZE만큼의 Boid 데이터를 공유 메모리로 로드
         boid_data[GI] = _BoidDataBufferRead[N_block_ID + GI];
+        boid_owner[GI] = _BoidOwnerBufferRead[N_block_ID + GI];
         
         // 그룹 내 모든 스레드가 공유 메모리에 엑세스를 마치고
         // 해당 호출에 도달할 때까지 그룹 내 모든 스레드가 여기서 대기
         GroupMemoryBarrierWithGroupSync();
         
+        /*
         // 이웃 개체와 관계 계산
         for (int N_tile_ID = 0; N_tile_ID < SIMULATION_BLOCK_SIZE; N_tile_ID++)
         {
@@ -131,7 +138,7 @@ void ForceCS
             // 이웃 개체 속도
             float3 N_direction = boid_data[N_tile_ID].direction;
             // 이웃 개체의 주인플레이어
-            int N_owner = boid_data[N_tile_ID].ownerID;
+            int N_owner = boid_owner[N_tile_ID].ownerID;
             
             float3 diff = P_position - N_position; // this.와 이웃 객체의 위치 차이
             float dist = sqrt(dot(diff, diff)); // this.와 이웃 객체와의 거리            
@@ -148,22 +155,31 @@ void ForceCS
             }
             
             // 정렬(Alignment)
-            if (dist > 0.0 && dist <= _AlignmentNeighborRadius)
+            if (dist > 0.0 && dist <= _AlignmentNeighborRadius && P_owner == N_owner)
             {
                 aliVelSum += N_direction; // 누적
                 aliCount++;
             }
             
             // 응집 (Cohesion)
-            if (dist > 0.0 && dist <= _CohesionNeighborRadius)
+            if (dist > 0.0 && dist <= _CohesionNeighborRadius && P_owner == N_owner)
             {
                 cohPosSum += N_position; // 누적
                 cohCount++;
             }
         }
+        */
         GroupMemoryBarrierWithGroupSync();
     }
     
+    // 주인 플레이어를 따라감
+    float3 ownerSteer = (float3) 0.0;
+    ownerSteer = ownerPosSum; // 주인 플레이어 위치
+    ownerSteer = normalize(ownerSteer) * _MaxSpeed; // 최대 속도로 조정
+    ownerSteer = ownerSteer - P_direction; // 조향력 계산
+    ownerSteer = Limit(ownerSteer, _MaxSteerForce); // 조향력 제한
+    
+    /*
     // 조향력(분리)
     float3 sepSteer = (float3) 0.0;
     if (sepCount > 0)
@@ -193,11 +209,12 @@ void ForceCS
         cohSteer = normalize(cohSteer) * _MaxSpeed; // 최대 속도
         cohSteer = cohSteer - P_direction; // 조향력 계산
         cohSteer = Limit(cohSteer, _MaxSteerForce); // 조향력 제한
-    }
+    }*/
     
-    force += sepSteer * _SeparateWeight; // 분리 가중치 계산
-    force += aliSteer * _AlignmentWeight; // 정렬 가중치 계산
-    force += cohSteer * _CohesionWeight; // 응집 가중치 계산
+    force += ownerSteer * _BoundOwnerWeight; // 주인 플레이어 가중치
+    //force += sepSteer * _SeparateWeight; // 분리 가중치 계산
+    //force += aliSteer * _AlignmentWeight; // 정렬 가중치 계산
+    //force += cohSteer * _CohesionWeight; // 응집 가중치 계산
     
     _BoidForceBufferWrite[P_ID] = force; // 쓰기
 }
@@ -213,16 +230,17 @@ void IntegrateCS
     
     BoidData b = _BoidDataBufferWrite[P_ID]; // 현재 Boid 데이터 읽기
     float3 force = _BoidForceBufferRead[P_ID]; // 조향력 읽기
+    BoidOwner owner = _BoidOwnerBufferRead[P_ID];
     
-//    if (b.ownerID == 0)
- //   {
-  //      _BoidDataBufferWrite[P_ID] = b;
-   // }
-    //else
-    //{
-     //   // 주인 플레이어와 너무 멀어지면 반발하는 힘 부여
-      //  force += StayOwner(b.position) * _BoundOwnerWeight;
-    //}
+    if (owner.ownerID == 0)
+    {
+       _BoidDataBufferWrite[P_ID] = b;
+    }
+    else
+    {
+       // 주인 플레이어와 너무 멀어지면 반발하는 힘 부여
+        force += StayOwner(P_ID, b.position) * _BoundOwnerWeight;
+    }
     
     b.direction += force * _DeltaTime; // 조향력을 속도에 적용
     b.direction = Limit(b.direction, _MaxSpeed); // 속도 제한
