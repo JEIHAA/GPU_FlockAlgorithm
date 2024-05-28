@@ -11,7 +11,7 @@
 	SubShader
 	{
 		Tags { "RenderType"="Opaque" }
-		LOD 500
+		LOD 200
 		
 		CGPROGRAM
 		#pragma surface surf Standard vertex:vert addshadow
@@ -76,10 +76,9 @@
 			float rotY = 
 				atan2(boidData.velocity.x, boidData.velocity.z);
 			// 速度からX軸についての回転を算出
-			float rotX = 
-				-asin(boidData.velocity.y / (length(boidData.velocity.xyz) + 1e-8));
+			//float rotX = -asin(boidData.velocity.y / (length(boidData.velocity.xyz) + 1e-8));
 			// オイラー角（ラジアン）から回転行列を求める
-			float4x4 rotMatrix = eulerAnglesToRotationMatrix(float3(rotX, rotY, 0));
+			float4x4 rotMatrix = eulerAnglesToRotationMatrix(float3(0, rotY, 0));
 			// 行列に回転を適用
 			object2world = mul(rotMatrix, object2world);
 			// 行列に位置（平行移動）を適用

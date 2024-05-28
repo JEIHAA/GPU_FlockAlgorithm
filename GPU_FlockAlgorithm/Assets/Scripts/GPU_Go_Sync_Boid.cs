@@ -131,7 +131,7 @@ public class GPU_Go_Sync_Boid : MonoBehaviour
     private void Update()
     {
         SyncGameObjects();
-        //FlockingBehavior();
+        FlockingBehavior();
     }
 
     private void OnDestroy()
@@ -157,17 +157,17 @@ public class GPU_Go_Sync_Boid : MonoBehaviour
         _boidOwnerBuffer = new ComputeBuffer(MaxObjectNum, Marshal.SizeOf(typeof(BoidOwner)));
 
         // Boid 데이터, Force 버퍼 업데이트 용 배열
-        boidDataArr = new BoidData[maxObjectNum];
         forceArr = new Vector3[maxObjectNum];
+        boidDataArr = new BoidData[maxObjectNum];
         boidOwnerArr = new BoidOwner[maxObjectNum];
 
         for (int i = 0; i < MaxObjectNum; ++i)
         {
             forceArr[i] = Vector3.zero;
-            boidOwnerArr[i].OwnerID = 0;
+            boidOwnerArr[i].OwnerID = -1;
             boidOwnerArr[i].OwnerPos = Vector3.zero;
             boidDataArr[i].Direction = Random.insideUnitSphere * 0.1f;
-            UpdateGameObjectState(i);
+            UpdateGameObjectPos(i);
         }
         UpdateBoidDataBuffer();
         UpdateBoidForceBuffer();
@@ -191,12 +191,12 @@ public class GPU_Go_Sync_Boid : MonoBehaviour
     {
         for (int i = 0; i < boidList.Count; i++)
         {
-            UpdateGameObjectState(i);
+            UpdateGameObjectPos(i);
         }
         UpdateBoidDataBuffer();
     }
 
-    public void UpdateGameObjectState(int index)
+    public void UpdateGameObjectPos(int index)
     {
         Vector3 boidPos;
         boidPos = boidList[index].transform.position;

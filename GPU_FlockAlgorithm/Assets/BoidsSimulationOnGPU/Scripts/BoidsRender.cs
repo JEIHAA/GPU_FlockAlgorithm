@@ -5,11 +5,11 @@ using UnityEngine;
 namespace BoidsSimulationOnGPU
 {
     // Boids를 렌더링하는 쉐이더를 제어하는 C# 스크립트
-    public class BoidsRenderTest : MonoBehaviour
+    // 同GameObjectに、GPUBoidsコンポーネントがアタッチされていること保証
+    [RequireComponent(typeof(GPUBoids))]
+    public class BoidsRender : MonoBehaviour
     {
         #region Paremeters
-
-        public Transform owner;
         // 描画するBoidsオブジェクトのスケール
         public Vector3 ObjectScale = new Vector3(0.1f, 0.2f, 0.5f);
         #endregion
@@ -17,7 +17,6 @@ namespace BoidsSimulationOnGPU
         #region Script References
         // GPUBoidsスクリプトの参照
         public GPUBoids GPUBoidsScript;
-        //public GPUBoidsTest GPUBoidsScript;
         #endregion
 
         #region Built-in Resources
@@ -47,7 +46,7 @@ namespace BoidsSimulationOnGPU
         void Update()
         {
             // メッシュをインスタンシング
-            RenderInstancedMesh1();
+            RenderInstancedMesh();
         }
 
         void OnDisable()
@@ -58,10 +57,9 @@ namespace BoidsSimulationOnGPU
             argsBuffer = null;
         }
         #endregion
-        Vector3 WallCenter = Vector3.zero;
-        Vector3 WallSize = new Vector3(32.0f, 32.0f, 32.0f);
+
         #region Private Functions
-        void RenderInstancedMesh1()
+        void RenderInstancedMesh()
         {
             // 描画用マテリアルがNull, または, GPUBoidsスクリプトがNull,
             // またはGPUインスタンシングがサポートされていなければ, 処理をしない
@@ -73,22 +71,21 @@ namespace BoidsSimulationOnGPU
             // 지정된 메쉬의 인덱스 가져오기
             uint numIndices = (InstanceMesh != null) ? (uint)InstanceMesh.GetIndexCount(0) : 0;
             args[0] = numIndices; // メッシュのインデックス数をセット 메쉬 인덱스 수 설정(초기화)
-            //args[1] = (uint)GPUBoidsScript.GetMaxObjectNum1(); // インスタンス数をセット 인스턴스 수 초기화
             args[1] = (uint)GPUBoidsScript.GetMaxObjectNum(); // インスタンス数をセット 인스턴스 수 초기화
             argsBuffer.SetData(args); // バッファにセット 버퍼에 설정(초기화)
 
             // Boidデータを格納したバッファをマテリアルにセット
             // Boid 데이터를 저장하는 버퍼를 머티리얼에 설정(초기화)
-            //InstanceRenderMaterial.SetBuffer("_BoidDataBuffer",
-            //GPUBoidsScript.GetBoidDataBuffer1());
-            InstanceRenderMaterial.SetBuffer("_BoidDataBuffer", GPUBoidsScript.GetBoidDataBuffers());
+            InstanceRenderMaterial.SetBuffer("_BoidDataBuffer",
+                GPUBoidsScript.GetBoidDataBuffer());
             // Boidオブジェクトスケールをセット
             // Boid 객체 스타일을 설정(초기화)
             InstanceRenderMaterial.SetVector("_ObjectScale", ObjectScale);
             // 境界領域を定義
             var bounds = new Bounds
             (
-                //owner.position, GPUBoidsScript.GetStayOwnerRadius()
+                GPUBoidsScript.GetSimulationAreaCenter(), // 中心 중심
+                GPUBoidsScript.GetSimulationAreaSize()    // サイズ 크기
             );
             // メッシュをGPUインスタンシングして描画
             // 메쉬를 GPU 인스턴싱하여 그리기
