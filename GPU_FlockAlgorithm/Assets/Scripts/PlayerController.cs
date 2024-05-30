@@ -1,3 +1,4 @@
+using BoidsSimulationOnGPU;
 using JetBrains.Annotations;
 using System.Collections;
 using System.Collections.Generic;
@@ -7,20 +8,7 @@ public class PlayerController : MonoBehaviour
 {
     public int OwnerID;
     public float MoveSpeed = 5.0f;
-    public GPU_Go_Sync_Boid boids;
-    private Vector3 stayOnwerRadius;
-
-    private void Awake()
-    {
-        stayOnwerRadius = boids.GetStayOwnerRadius();
-    }
-
-    private void OnDrawGizmos()
-    {
-        // 주인 플레이어 근처에 머무는 범위 렌더링
-        Gizmos.color = Color.blue;
-        Gizmos.DrawWireSphere(transform.position, stayOnwerRadius.x);
-    }
+    public GPUBoids boids;
 
     // Update is called once per frame
     void Update()

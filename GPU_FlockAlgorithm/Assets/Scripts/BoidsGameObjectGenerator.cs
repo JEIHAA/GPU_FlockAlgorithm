@@ -1,10 +1,10 @@
+using BoidsSimulationOnGPU;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 public class BoidsGameObjectGenerator : MonoBehaviour
 {
-    //[SerializeField] private GPUBoids maxObjectNum;
-    [SerializeField] private GPU_Go_Sync_Boid maxObjectNum;
+    [SerializeField] private GPUBoids maxObjectNum;
     [SerializeField] private Transform boidSpawnerParent;
     [SerializeField] private GameObject prefab;
     [SerializeField] private Transform boidsParent;
@@ -19,8 +19,6 @@ public class BoidsGameObjectGenerator : MonoBehaviour
         int idx;
         for (int i = 0; i < maxObjectNum.MaxObjectNum; ++i)
         {
-            //boidPosition = boidSpawners[SetRandomPositionTest()].position;
-            //boidPosition = boidSpawners[SetRandomPosition()].position;
             idx = SetRandomPositionTest();
             boidPosition = boidSpawners[idx].position;
             boidPosition.y = 1.2f;
@@ -31,14 +29,14 @@ public class BoidsGameObjectGenerator : MonoBehaviour
     }
     
 
-    private int SetRandomPositionTest()
+    private int SetRandomPositionTest() // ±Õµî ºÐ¹è
     {
         int len = boidSpawners.Length;
         int idx = Random.Range(1, len);
         return idx;
     }
 
-    private int SetRandomPosition()
+    private int SetRandomPosition() // ¿ÏÀü ·£´ý ºÐ¹è
     {
         System.Random random = new System.Random((int)System.DateTime.Now.Ticks);
         int len = boidSpawners.Length;

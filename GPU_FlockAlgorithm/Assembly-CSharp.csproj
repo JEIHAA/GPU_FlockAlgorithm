@@ -61,9 +61,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Scripts\GPUBoids.cs" />
-    <Compile Include="Assets\BoidsSimulationOnGPU\Scripts\GPUBoids.cs" />
-    <Compile Include="Assets\Scripts\GPUBoidsTest.cs" />
-    <Compile Include="Assets\BoidsSimulationOnGPU\Scripts\BoidsRender.cs" />
+    <Compile Include="Assets\Scripts\GPUBoids_22.cs" />
+    <Compile Include="Assets\Scripts\BoidsRender_33.cs" />
     <Compile Include="Assets\Scripts\GPU_Go_Sync_Boid.cs" />
     <Compile Include="Assets\Scripts\BoidManager.cs" />
     <Compile Include="Assets\Scripts\PlayerController.cs" />
@@ -71,12 +70,11 @@
     <Compile Include="Assets\Scripts\BoidsGameObjectGenerator.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Assets\ComputeShaders\Boids.compute" />
-    <None Include="Assets\BoidsSimulationOnGPU\Shaders\BoidsRender.shader" />
-    <None Include="Assets\BoidsSimulationOnGPU\ComputeShaders\Boids.compute" />
     <None Include="Assets\Shaders\BoidsRender.shader" />
+    <None Include="Assets\ComputeShaders\Boids.compute" />
+    <None Include="Assets\Little_GhostLP(FREE)\Documentation\Documentation(Little Ghost FREE).txt" />
+    <None Include="Assets\Shaders\BoidsRender_22.shader" />
     <None Include="Assets\ComputeShaders\Boids_OwnerSync.compute" />
-    <None Include="Assets\ComputeShaders\BoidsTest.compute" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">

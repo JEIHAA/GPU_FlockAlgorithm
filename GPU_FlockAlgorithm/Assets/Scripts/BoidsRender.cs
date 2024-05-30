@@ -1,97 +1,100 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
+using UnityEditor.PackageManager;
 using UnityEngine;
-using static GPUBoids;
 
-// Boids¸¦ ·»´õ¸µÇÏ´Â ¼ÎÀÌ´õ¸¦ Á¦¾î
-//[RequireComponent(typeof(GPUBoids))]
-public class BoidsRender : MonoBehaviour
-{
-    // #region, #endregion: ÄÚµå ºí·°À¸·Î ¹­±â
-    #region Parameters
-    // È­¸é¿¡ ±×¸± Boid °´Ã¼ÀÇ ½ºÄÉÀÏ
-    [SerializeField] private Vector3 ObjectScale = new Vector3(1f, 1f, 1f);
-    #endregion
+namespace BoidsSimulationOnGPU
+	{
+	// Boidsë¥¼ ë Œë”ë§í•˜ëŠ” ì‰ì´ë”ë¥¼ ì œì–´í•˜ëŠ” C# ìŠ¤í¬ë¦½íŠ¸
+	[RequireComponent(typeof(GPUBoids))]
+	public class BoidsRender : MonoBehaviour
+	{
+		#region Paremeters
+		public Vector3 ObjectScale = new Vector3(1f, 1f, 1f);
+		#endregion
 
-    #region Script References
-    // ½ºÅ©¸³Æ® ÂüÁ¶
-    //[SerializeField] GPUBoids GPUBoidsScript;
-    [SerializeField] GPU_Go_Sync_Boid GPUBoidsScript; 
-    [SerializeField] PlayerController player;
-    #endregion
+		#region Script References
+		public GPUBoids GPUBoidsScript;
+		#endregion
 
-    #region Built-in Resources
-    // È­¸é¿¡ ±×¸± ¸Ş½¬ ÂüÁ¶
-    [SerializeField] private Mesh InstanceMesh;
-    // È­¸é¿¡ ±×¸± ¸ÓÆ¼¸®¾ó ÂüÁ¶
-    [SerializeField] Material InstanceRenderMaterial;
-    #endregion
+		#region Built-in Resources
+		public Mesh InstanceMesh;
+		public List<Material> InstanceRenderMaterial;
+		public Material material;
+		#endregion
 
-    #region Private Variables
-    // GPU ÀÎ½ºÅÏ½ÌÀ» À§ÇÑ ÀÎ¼ö (ComputeBuffer Àü¼Û¿ë)
-    // ÀÎ½ºÅÏ½º ´ç ÀÎµ¦½º ¼ö, ÀÎ½ºÅÏ½º ¼ö,
-    // ½ÃÀÛ ÀÎµ¦½º À§Ä¡, º£ÀÌ½º Á¤Á¡ À§Ä¡, ÀÎ½ºÅÏ½ºÀÇ ½ÃÀÛ À§Ä¡
-    uint[] args = new uint[5] { 0, 0, 0, 0, 0 }; // Unsigned Integer
-    ComputeBuffer argsBuffer;
-    #endregion
+		#region Private Variables
+		uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
+		ComputeBuffer argsBuffer;
+		#endregion
 
-    #region MonoBehaviour Functions
-    private void Start()
-    {
-        // ÀÎ¼ö¹öÆÛ ÃÊ±âÈ­
-        // ComputeShader°¡ ¸Ş¸ğ¸® ¹öÆÛ¿¡ ÀĞ°í ¾²±â À§ÇØ ÇÊ¿äÇÑ µ¥ÀÌÅÍ
-        // ComputeBuffer(±æÀÌ, ÀÌ¸§, ¿ä¼Ò ÇÏ³ªÀÇ Å©±â)
-        argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
-    }
+		#region MonoBehaviour Functions
+		void Start()
+		{
+			argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint),
+			ComputeBufferType.IndirectArguments);
+		}
 
-    private void Update()
-    {
-        // ¸Ş½¬ ÀÎ½ºÅÏ½Ì
-        RenderInstanceMesh();
-    }
+		void Update()
+		{
+			RenderInstancedMesh();
+		}
 
-    private void OnDisable()
-    {
-        // ÀÎ¼ö¹öÆÛ ÇØÁ¦
-        if (argsBuffer != null)
-        {
-            argsBuffer.Release(); // ¹öÆÛÇØÁ¦. »èÁ¦
-        }
-        argsBuffer = null;
-    }
-    #endregion
+		void OnDisable()
+		{
+			if (argsBuffer != null)
+			argsBuffer.Release();
+			argsBuffer = null;
+		}
+		#endregion
 
-    #region Private Functions
-    void RenderInstanceMesh()
-    {
-        // ·»´õ¸µ¿ë ¸ÓÆ¼¸®¾óÀÌ Null ¶Ç´Â GPUBoids ½ºÅ©¸³Æ®°¡ Null
-        // ¶Ç´Â GPU ÀÎ½ºÅÏ½ÌÀÌ Áö¿øµÇÁö ¾ÊÀ¸¸é Ã³¸®ÇÏÁö ¾ÊÀ½
-        if (InstanceMesh == null || GPUBoidsScript == null || !SystemInfo.supportsInstancing) return;
+		#region Private Functions
+		void RenderInstancedMesh()
+		{
+			if (InstanceRenderMaterial == null || GPUBoidsScript == null || !SystemInfo.supportsInstancing) {
+				Debug.LogError("InstanceRenderMaterial is Null!");
+				return;
+			}
 
-        // ÁöÁ¤ÇÑ ¸Ş½¬ÀÇ ÀÎµ¦½º °¡Á®¿À±â
-        uint numIndices = (InstanceMesh != null) ? (uint)InstanceMesh.GetIndexCount(0) : 0;
-        // ¸Ş½¬ ÀÎµ¦½º ¼ö ¼³Á¤(ÃÊ±âÈ­)
-        args[0] = numIndices;
-        args[1] = (uint)GPUBoidsScript.GetMaxObjectNum();
-        argsBuffer.SetData(args);
+			int subMeshCount = InstanceMesh != null ? InstanceMesh.subMeshCount : 0;
 
-        // Boid µ¥ÀÌÅÍ¸¦ ÀúÀåÇÏ´Â ¹öÆÛ¸¦ ¸ÓÆ¼¸®¾ó¿¡ ¼³Á¤(ÃÊ±âÈ­)
-        InstanceRenderMaterial.SetBuffer("_BoidDataBuffer", GPUBoidsScript.GetBoidDataBuffers());
-        
-/*        BoidData[] debugData = new BoidData[GPUBoidsScript.GetMaxObjectNum()];
-        GPUBoidsScript.GetBoidDataBuffers().GetData(debugData);*/
+			for (int i = 0; i < subMeshCount; ++i)
+			{
+				
+				Debug.Log(i);
+				if (i >= InstanceRenderMaterial.Count)
+				{
+					material = InstanceRenderMaterial[0];
+					Debug.LogError("Need more material");
+					break;
+				}
+				else
+				{
+					material = InstanceRenderMaterial[i];
+				}
+				uint numIndices = (uint)InstanceMesh.GetIndexCount(0);
+				numIndices = (uint)InstanceMesh.GetIndexCount(i);
+				argsBuffer.SetData(args); // ë²„í¼ì— ì„¤ì •(ì´ˆê¸°í™”)
 
-        // Boid °´Ã¼ ½ºÄÉÀÏ ¼³Á¤(ÃÊ±âÈ­)
-        InstanceRenderMaterial.SetVector("_ObjectScale", ObjectScale); 
-        
-        // °æ°è ¿µ¿ª Á¤ÀÇ
-        Bounds bounds = new Bounds(new Vector3(0f,0f,0f), GPUBoidsScript.GetRenderDistance());
+				// ì§€ì •ëœ ë©”ì‰¬ì˜ ì¸ë±ìŠ¤ ê°€ì ¸ì˜¤ê¸°
+				args[0] = numIndices; // ë©”ì‰¬ ì¸ë±ìŠ¤ ìˆ˜ ì„¤ì •(ì´ˆê¸°í™”)
+				args[1] = (uint)GPUBoidsScript.GetMaxObjectNum(); // ì¸ìŠ¤í„´ìŠ¤ ìˆ˜ ì´ˆê¸°
 
-        // ¸Ş½¬¸¦ GPU ÀÎ½ºÅÏ½ÌÇÏ¿© ±×¸®±â
-        Graphics.DrawMeshInstancedIndirect(InstanceMesh, 0, InstanceRenderMaterial, bounds, argsBuffer);
-        // (ÀÎ½ºÅÏ½ÌÇÏ´Â ¸Ş½¬, submesh ÀÎµ¦½º, ¸ÓÆ¼¸®¾ó, ·»´õ ¿µ¿ª, GPU ÀÎ½ºÅÏ½ÌÀ» À§ÇÑ ÀÎ¼öÀÇ ¹öÆÛ) Áö±İÀº »ç¿ëÇÏÁö ¾ÊÀ½
-        // Graphics.RenderMeshIndirect »ç¿ë
-    }
-    #endregion
+				Debug.Log(InstanceRenderMaterial[i]);
+
+				material.SetBuffer("_BoidDataBuffer", GPUBoidsScript.GetBoidDataBuffer()); // Boid ë°ì´í„°ë¥¼ ì €ì¥í•˜ëŠ” ë²„í¼ë¥¼ ë¨¸í‹°ë¦¬ì–¼ì— ì„¤ì •(ì´ˆê¸°í™”)
+				material.SetVector("_ObjectScale", ObjectScale); // Boid ê°ì²´ ìŠ¤íƒ€ì¼ì„ ì„¤ì •(ì´ˆê¸°í™”)
+
+				var bounds = new Bounds
+				(
+					GPUBoidsScript.GetRenderAreaCenter(), // ì¤‘ì‹¬
+					GPUBoidsScript.GetRenderAreaSize()    // í¬ê¸°
+				);
+
+				Graphics.DrawMeshInstancedIndirect(InstanceMesh, i, InstanceRenderMaterial[i], bounds, argsBuffer);
+				// ì¸ìŠ¤í„´ì‹± í•  ë©”ì‰¬, ì„œë¸Œë©”ì‰¬ ì¸ë±ìŠ¤, ë¨¸í‹°ë¦¬ì–¼, ê²½ê³„ì˜ì—­, ì¸ìˆ˜ë²„í¼
+			}
+		}
+		#endregion
+	}
 }
-

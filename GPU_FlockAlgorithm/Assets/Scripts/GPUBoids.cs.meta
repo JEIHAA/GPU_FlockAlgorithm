@@ -1,9 +1,11 @@
 fileFormatVersion: 2
-guid: 18ffc6d5625d27a4daae1b05508bc732
+guid: 89172c0bb49896b4ea692a26e0741e36
+timeCreated: 1507467386
+licenseType: Pro
 MonoImporter:
-  externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - BoidsCS: {fileID: 7200000, guid: 47567044d261e474db26e25410628c0a, type: 3}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

@@ -1,9 +1,14 @@
 fileFormatVersion: 2
-guid: 313f1b4aa8ed36944929f077d93f50a1
+guid: 91c313f18a9b84e4981f6632159ac627
+timeCreated: 1507467374
+licenseType: Pro
 MonoImporter:
-  externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - GPUBoidsScript: {instanceID: 0}
+  - InstanceMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  - InstanceRenderMaterial: {fileID: 2100000, guid: 91dbb6b6149df404a986444779bcb3a3,
+      type: 2}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

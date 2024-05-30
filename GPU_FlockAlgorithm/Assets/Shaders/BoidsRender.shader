@@ -1,109 +1,99 @@
-Shader "Custom/BoidsRender"
+ÔªøShader "Custom/DefaultBoidsRender"
 {
-    // GPU¿ŒΩ∫≈œΩÃ. ø¿∫Í¡ß∆Æ ∑ª¥ı∏µ Ω¶¿Ã¥ı
-    Properties
-    {
-        _Color ("Color", Color) = (1,1,1,1)
-        _MainTex ("Albedo (RGB)", 2D) = "white" {}
-        _Glossiness ("Smoothness", Range(0,1)) = 0.5
-        _Metallic ("Metallic", Range(0,1)) = 0.0
-    }
-    SubShader
-    {
-        Tags { "RenderType"="Opaque" }
-        LOD 200
+	// GPU Ïù∏Ïä§ÌÑ¥Ïã±ÏùÑ ÌÜµÌï¥ Ïò§Î∏åÏ†ùÌä∏Î•º Î†åÎçîÎßÅÌïòÎäî ÏâêÏù¥Îçî
+	Properties
+	{
+		_MainTex ("Albedo (RGB)", 2D) = "white" {}
+		_Color ("Color", Color) = (1,1,1,1)
+		_Glossiness ("Smoothness", Range(0,1)) = 0.5
+		_Metallic ("Metallic", Range(0,1)) = 0.0
+	}
+	SubShader
+	{
+		Tags { "RenderType"="Opaque" }
+		LOD 200
+		
+		CGPROGRAM
+		#pragma surface surf Standard vertex:vert addshadow
+		#pragma instancing_options procedural:setup
+		
+		struct Input
+		{
+			//float2 uv_MainTex;
+			float3 worldPos;
+		};
 
-        CGPROGRAM
-        #pragma surface surf Standard fullforwardshadows
-        #pragma instancing_options procedural:setup // Unity∞° ¿ŒΩ∫≈œΩ∫ø° ªÁøÎ«œ¥¬ ø…º« ¡ˆ¡§
-        // Graphics.RenderMeshIndirectøÕ «‘≤≤ ªÁøÎ«“ √ﬂ∞° πË∏Ææ∆Æ∏¶ ª˝º∫
-        // πˆ≈ÿΩ∫ ºŒ¿Ã¥ı Ω√¿€ ¥‹∞Ëø°º≠ procedural µ⁄ø° ¡ˆ¡§«— «‘ºˆ »£√‚
+		
+		struct BoidData
+		{
+			float3 velocity;
+			float3 position;
+		};
 
-        struct Input
-        {
-            float2 uv_MainTex;
-        };
+		#ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
+		StructuredBuffer<BoidData> _BoidDataBuffer;
+		#endif
 
-        // Boid¿« ±∏¡∂√º
-        struct BoidData
-        {
-            float3 position;
-            float3 direction;
-        };
+		//sampler2D _MainTex;
 
-        // #ifdef : UNITY_PROCEDURAL_INSTANCING_ENABLED∞° true∂Û∏È
-        #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED 
-        // Boid µ•¿Ã≈Õ¿« ±∏¡∂√º πˆ∆€
-        StructureBuffer<BoidData> _BoidDataBuffer;
-        #endif
+		half   _Glossiness; 
+		half   _Metallic;   
+		fixed4 _Color;      
 
-        sampler2D _MainTex; // ≈ÿΩ∫√ƒ
+		float3 _ObjectScale;
 
-        half _Glossiness;
-        half _Metallic;
-        fixed4 _Color;
+		float4x4 eulerAnglesToRotationMatrix(float3 angles)
+		{
+			float ch = cos(angles.y); float sh = sin(angles.y); // heading
+			float ca = cos(angles.z); float sa = sin(angles.z); // attitude
+			float cb = cos(angles.x); float sb = sin(angles.x); // bank
 
-        float3 _ObjectScale; // Boid ∞¥√º¿« ≈©±‚
-        
-        // ø¿¿œ∑Ø∞¢(∂Ûµæ»)¿ª »∏¿¸ «‡∑ƒ∑Œ ∫Ø»Ø    
-        float4x4 eulerAnglesToRotationMatrix(float3 angles){
-            float ch = cos(angles.y); float sh = sin(angles.y); // heading
-            float ca = cos(angles.z); float sa = sin(angles.z); // attitude
-            float cb = cos(angles.x); float sb = sin(angles.x); // bank
-            // RyRxRz (Heading Bank Attitude)
-            return float4x4(
-            ch * ca + sh * sb * sa, -ch * sa + sh * sb * ca, sh * cb, 0,
-            cb * sa, cb * ca, -sb, 0,
-            -sh * ca + ch * sb * sa, sh * sa + ch * sb * ca, ch * cb, 0,
-            0, 0, 0, 1
-            );
-        }
+			// Ry-Rx-Rz (Yaw Pitch Roll)
+			return float4x4(
+				ch * ca + sh * sb * sa, -ch * sa + sh * sb * ca, sh * cb, 0,
+				cb * sa, cb * ca, -sb, 0,
+				-sh * ca + ch * sb * sa, sh * sa + ch * sb * ca, ch * cb, 0,
+				0, 0, 0, 1
+			);
+		}
 
-        // ¡§¡° ºŒ¿Ã¥ı
-        void vert(inout appdata_full v){
-            #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
-            
-            // ¿ŒΩ∫≈œΩ∫ ID∑Œ Boid¿« µ•¿Ã≈Õ ∞°¡Æø¿±‚
-            BoidData boidData = _BoidDataBuffer[unity_InstanceID]; // unity_InstanceID: ¿ŒΩ∫≈œΩ∫∏∂¥Ÿ ∞Ì¿Ø«— ID
+		void vert(inout appdata_full v)
+		{
+			#ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
+			BoidData boidData = _BoidDataBuffer[unity_InstanceID]; 
 
-            float3 pos = boidData.position.xyz; // Boid¿« ¿ßƒ°
-            float3 scl = _ObjectScale; // Boid¿« Ω∫ƒ…¿œ
+			float3 pos = boidData.position.xyz;
+			float3 scl = _ObjectScale;         
 
-            // ∞¥√º¿« ¡¬«•ø°º≠ ø˘µÂ ¡¬«•∏¶ ∫Ø»Ø«œ¥¬ «‡∑ƒ¿ª ¡§¿«
-            float4x4 object2world = (float4x4)0;
-            // Ω∫ƒ…¿œ ∞™ ¥Î¿‘
-            object2world._11_22_33_44 = float4(scl.xyz, 1.0);
+			float4x4 object2world = (float4x4)0; 
+			object2world._11_22_33_44 = float4(scl.xyz, 1.0);
 
-            // º”µµø°º≠ Y √‡ø° ¥Î«— »∏¿¸¿ª ∞ËªÍ
-            float rotY = atan2(boidData.direction.x, boidData.direction.z);
-            // º”µµø°º≠ X √‡ø° ¥Î«— »∏¿¸¿ª ªÍ√‚
-            float rotX = -asin(boidData.direction.y / (length(boidData.direction.xyz) + 1e-8)); // + 1e-8: 0 ≥™¥∞º¿πÊ¡ˆ
+			float rotY = atan2(boidData.velocity.x, boidData.velocity.z);
+			//float rotX = -asin(boidData.velocity.y / (length(boidData.velocity.xyz) + 1e-8));
 
-            // ø¿¿œ∑Ø∞¢(∂Ûµæ»)ø°º≠ »∏¿¸ «‡∑ƒ¿ª ±∏«—¥Ÿ
-            float4x4 rotMatrix = eulerAnglesToRotationMatrix(float3(rotX, rotY, 0));
-            // «‡∑ƒø° »∏¿¸¿ª ¿˚øÎ
-            object2world = mul(rotMatrix, object2world);
-            // «‡∑ƒø° ¿ßƒ°(∆Ú«‡¿Ãµø)∏¶ ¿˚øÎ
-            object2world._14_24_34 += pos.xyz;
+			float4x4 rotMatrix = eulerAnglesToRotationMatrix(float3(0, rotY, 0));
+			object2world = mul(rotMatrix, object2world);
+			
+			object2world._14_24_34 += pos.xyz;
 
-            // ¡§¡°¿ª ¡¬«• ∫Ø»Ø
-            v.vertex = mul(object2world, v.vertex);
-            // π˝º±¿ª ¡¬«• ∫Ø»Ø
-            v.normal = normalize(mul(object2world, v.normal));
-            #endif
-        }
+			v.vertex = mul(object2world, v.vertex);
+			v.normal = normalize(mul(object2world, v.normal));
+			#endif
+		}
+		
+		void setup()
+		{
+		}
 
-        void setup(){    
-        }
-
-        // º≠∆‰¿ÃΩ∫ ºŒ¿Ã¥ı
-        void surf(Input IN, inout SurfaceOutputStandard o){
-            fixed4 c = tex2D (_MainTex, IN.uv_MainTex) * _Color;
-            o.Albedo = c.rgb;
-            o.Metallic = _Metallic;
-            o.Smoothness = _Glossiness;
-        }
-        ENDCG
-    }
-    FallBack "Diffuse"
+		void surf (Input IN, inout SurfaceOutputStandard o)
+		{
+			//fixed4 c = tex2D (_MainTex, IN.uv_MainTex) * _Color;
+			//o.Albedo = c.rgb;
+			o.Albedo = _Color.rgb;
+			o.Metallic = _Metallic;
+			o.Smoothness = _Glossiness;
+		}
+		ENDCG
+	}
+	FallBack "Diffuse"
 }

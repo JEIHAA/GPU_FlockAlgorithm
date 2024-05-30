@@ -1,287 +1,328 @@
+ï»¿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.Tracing;
-using System.Globalization;
 using System.Runtime.InteropServices;
-using Unity.VisualScripting;
-using UnityEngine;
-using UnityEngine.Rendering;
 using UnityEngine.UIElements;
+using JetBrains.Annotations;
 
-// BoidsÀÇ ½Ã¹°·¹ÀÌ¼ÇÀ» ½ÇÇàÇÏ´Â ComputeShader¸¦ Á¦¾î
-public class GPUBoids : MonoBehaviour
+namespace BoidsSimulationOnGPU
 {
-    enum Owners { none, player1, player2 }
+  // Boidsì˜ ì‹œë®¬ë ˆì´ì…˜ì„ ì‹¤í–‰í•˜ëŠ” ComputeShaderë¥¼ ì œì–´
+  public class GPUBoids : MonoBehaviour
+  {
     [System.Serializable]
-    public struct BoidData
+    struct BoidData
     {
-        //private int ownerID;
-        private Vector3 direction;
-        private Vector3 position;
-        private Vector3 targetLocation;
+        public Vector3 velocity; 
+        public Vector3 position;
 
-        //public int OwnerID { get { return ownerID; } set { ownerID = value; } }
-        public Vector3 Direction { get { return direction; } set { direction = value; } }
+        public Vector3 Velocity { get { return velocity; } set { velocity = value; } }
         public Vector3 Position { get { return position; } set { position = value; } }
-        public Vector3 TargetLocation { get { return targetLocation; } set { targetLocation = value; } }
     }
 
-    // ½º·¹µå ±×·ìÀÇ Å©±â
+    [System.Serializable]
+    public struct BoidTarget
+    {
+        private int ownerID;
+        private Vector3 targetPos;
+
+        public int OwnerID { get { return ownerID; } set { ownerID = value; } }
+        public Vector3 TargetPos { get { return targetPos; } set { targetPos = value; } }
+    }
+
+    // ìŠ¤ë ˆë“œ ê·¸ë£¹ì˜ í¬ê¸°
     const int SIMULATION_BLOCK_SIZE = 256;
 
     #region Built-in Resources
-    // Boids ½Ã¹Ä·¹ÀÌ¼ÇÀ» ½ÇÇàÇÏ´Â ComputeShaderÀÇ ÂüÁ¶
-    [SerializeField] private ComputeShader BoidsCS;
+    // Boids ì‹œë®¬ë ˆì´ì…˜ì„ ì‹¤í–‰í•˜ëŠ” ComputeShaderì˜ ì°¸ì¡°
+    [SerializeField] private ComputeShader boidsCS;
+    //[SerializeField] private BoidManager boidManager;
     #endregion
 
     #region Boids Parameters
-    [Header("ÃÖ´ë °³Ã¼ ¼ö")]
-    // ÃÖ´ë °³Ã¼ ¼ö
-    [SerializeField, Range(10, 32768)]
-    private int maxObjectNum = 256;
-    public int MaxObjectNum { get { return maxObjectNum; } }
+    [Header("ìµœëŒ€ ê°œì²´ ìˆ˜")]
+    // ìµœëŒ€ ê°œì²´ ìˆ˜
+    [Range(5, 32768)]
+    public int MaxObjectNum = 256;
 
-    [Header("·»´õ °Å¸®")]
-    [SerializeField] private Vector3 renderDistance = new Vector3(20f, 20f, 20f);
+    [Header("ê²Œì„ ì˜¤ë¸Œì íŠ¸")]
+    // ìŠ¤í° í¬ì¸íŠ¸
+    [SerializeField] private BoidsGameObjectGenerator boidSpawner;
+    //boid ê²Œì„ ì˜¤ë¸Œì íŠ¸
+    List<GameObject> boidList = new List<GameObject>();
 
-    [Header("ÃÖ´ë ¼Óµµ¿Í Èû")]
-    // ÃÖ´ë ¼Óµµ
+    [Header("ìµœëŒ€ ì†ë„ì™€ í˜")]
+    // ìµœëŒ€ ì†ë„
     [SerializeField] private float maxSpeed = 5.0f;
-    // Á¶Çâ·ÂÀÇ ÃÖ´ëÄ¡
+    // ì¡°í–¥ë ¥ì˜ ìµœëŒ€ì¹˜
     [SerializeField] private float maxSteerForce = 0.5f;
 
-    [Header("Çàµ¿ ¹üÀ§")]
-    // ÀÀÁı Çàµ¿ ¹üÀ§
-    [SerializeField] private float cohesionNeighborRadius = 2.0f;
-    // Á¤·Ä Çàµ¿ ¹üÀ§
-    [SerializeField] private float alignmentNeighborRadius = 2.0f;
-    // ºĞ¸® Çàµ¿ ¹üÀ§
-    [SerializeField] private float separateNeighborRadius = 2.0f;
+    [Header("í–‰ë™ ë²”ìœ„")]
+    // ì‘ì§‘ í–‰ë™ ë²”ìœ„
+    [SerializeField] private float cohesionNeighborhoodRadius = 2.0f;
+    // ì •ë ¬ í–‰ë™ ë²”ìœ„
+    [SerializeField] private float alignmentNeighborhoodRadius = 2.0f;
+    // ë¶„ë¦¬ í–‰ë™ ë²”ìœ„
+    [SerializeField] private float separateNeighborhoodRadius = 2.0f;
 
-    [Header("Çàµ¿ °¡ÁßÄ¡")]
-    // ÀÀÁı Çàµ¿ °¡ÁßÄ¡
+    [Header("í–‰ë™ ê°€ì¤‘ì¹˜")]
+    // ì‘ì§‘ í–‰ë™ ê°€ì¤‘ì¹˜
     [SerializeField] private float cohesionWeight = 1.0f;
-    // Á¤·Ä Çàµ¿ °¡ÁßÄ¡
+    // ì •ë ¬ í–‰ë™ ê°€ì¤‘ì¹˜
     [SerializeField] private float alignmentWeight = 1.0f;
-    // ºĞ¸® Çàµ¿ °¡ÁßÄ¡
+    // ë¶„ë¦¬ í–‰ë™ ê°€ì¤‘ì¹˜
     [SerializeField] private float separateWeight = 1.0f;
 
-    [Header("½ºÆù Æ÷ÀÎÆ®")]
-    // ½ºÆù Æ÷ÀÎÆ®
-    [SerializeField] private BoidsGameObjectGenerator boidSpawner;
-    List<GameObject> boidList = new List<GameObject>();
-    private BoidManager boid;
+    [Header("ì£¼ì¸ í”Œë ˆì´ì–´ ë°”ìš´ë“œ")]
+    // ì£¼ì¸ í”Œë ˆì´ì–´ ì£¼ë³€ì—ì„œ ë²—ì–´ë‚˜ì§€ ì•ŠëŠ” í˜ì˜ ê°€ì¤‘ì¹˜
+    [SerializeField] private float boundOwnerWeight = 10f;
+    // ì£¼ì¸ í”Œë ˆì´ì–´ ê·¼ì²˜ì— ë¨¸ë¬¼ ë²”ìœ„
+    [SerializeField] private Vector3 stayOwnerRadius = new Vector3(5f, 1f, 5f);
 
-    /*[Header("ÁÖÀÎ ÇÃ·¹ÀÌ¾î")]
-    // ÇÃ·¹ÀÌ¾î ¸®½ºÆ®
-    [SerializeField] private Transform[] players;
-    // ÇÃ·¹ÀÌ¾î À§Ä¡
-    List<Transform> playerPos = new List<Transform>();
-    // ÁÖÀÎ ÇÃ·¹ÀÌ¾î
-    [SerializeField] private Transform owner;
-    // ÁÖÀÎ ÇÃ·¹ÀÌ¾î ÁÖº¯¿¡¼­ ¹ş¾î³ªÁö ¾Ê´Â ÈûÀÇ °¡ÁßÄ¡
-    [SerializeField] private float boundOwnerWeight = 10f; // ÁÖÀÎ ÇÃ·¹ÀÌ¾î À§Ä¡
-    private Vector3 ownerPos;
-    // ÁÖÀÎ ÇÃ·¹ÀÌ¾î ±ÙÃ³¿¡ ¸Ó¹° ¹üÀ§
-    [SerializeField] private Vector3 stayOwnerRadius = new Vector3(5f, 1f, 5f);*/
+    [Header("ê²½ê³„êµ¬ì—­ ë°”ìš´ë“œ")]
+    // ê²½ê³„ ë°˜ë°œë ¥
+    public float AvoidWallWeight = 10.0f;
+
+    // ë Œë” ê²½ê³„ ì¤‘ì‹¬
+    public Vector3 renderAreaCenter = Vector3.zero;
+    // ë Œë” ê²½ê³„ ë²”ìœ„
+    public Vector3 renderAreaSize = new Vector3(45.0f, 1.0f, 45.0f);
+
+    // ê²½ê³„ ë²”ìœ„
+    public Vector3 boundarySize = new Vector3(5.0f, 1.0f, 5.0f);
     #endregion
 
     #region Private Resources
-    // Boid ±âº» µ¥ÀÌÅÍ (¼Óµµ, À§Ä¡ µî)À» Æ÷ÇÔÇÏ´Â ¹öÆÛ
+    // Boid ê¸°ë³¸ ë°ì´í„° (ì†ë„, ìœ„ì¹˜ ë“±)ë¥¼ ê´€ë¦¬í•˜ëŠ” ë²„í¼
     private ComputeBuffer _boidDataBuffer;
-    // Boid Á¶Çâ·Â(Force)À» Æ÷ÇÔÇÏ´Â ¹öÆÛ
+    public ComputeBuffer _BoidDataBuffer
+    { get { return _boidDataBuffer; } set { _boidDataBuffer = value; } }
+    // Boid ì¡°í–¥ë ¥(Force)ì„ ê´€ë¦¬í•˜ëŠ” ë²„í¼
     private ComputeBuffer _boidForceBuffer;
+    // Boidì™€ í”Œë ˆì´ì–´ì˜ ê´€ê³„ë¥¼ ê´€ë¦¬í•˜ëŠ” ë²„í¼
+    private ComputeBuffer _boidTargetBuffer;
+
+    // Boid ë°ì´í„°, Force ë²„í¼ ì—…ë°ì´íŠ¸ ìš© ë°°ì—´
+    BoidData[] boidDataArr;
+    Vector3[] forceArr;
+    BoidTarget[] boidTargetArr;
     #endregion
 
+
     #region Accessors
-    // BoidÀÇ ±âº» µ¥ÀÌÅÍ¸¦ ÀúÀåÇÏ´Â ¹öÆÛ¸¦ ¹İÈ¯
-    public ComputeBuffer GetBoidDataBuffers()
+    // Boidì˜ ê¸°ë³¸ ë°ì´í„°ë¥¼ ì €ì¥í•˜ëŠ” ë²„í¼ë¥¼ ë°˜í™˜
+    public ComputeBuffer GetBoidDataBuffer()
     {
-        return this._boidDataBuffer != null ? this._boidDataBuffer : null;
+     return this._boidDataBuffer != null ? this._boidDataBuffer : null;
+    }
+    // boidTargerArr ë°˜í™˜
+    public BoidTarget[] GetBoidTargetArr()
+    {
+      return this.boidTargetArr != null ? this.boidTargetArr : null;
     }
 
-    // °³Ã¼ ¼ö ¹İÈ¯
+    // ê°œì²´ ìˆ˜ ë°˜í™˜
     public int GetMaxObjectNum()
     {
         return this.MaxObjectNum;
     }
 
-/*    // ÁÖÀÎ ÇÃ·¹ÀÌ¾î À§Ä¡¸¦ ¹İÈ¯
-    public Vector3 GetOwnerPos()
+    // ì‹œë®¬ë ˆì´ì…˜ ì˜ì—­ì˜ ì¤‘ì‹¬ ì¢Œí‘œ ë°˜í™˜
+    public Vector3 GetRenderAreaCenter()
     {
-        return ownerPos;
+        return this.renderAreaCenter; 
     }
 
-    // ÁÖÀÎ ÇÃ·¹ÀÌ¾î ±ÙÃ³¿¡¼­ ¸Ó¹° ¹üÀ§¸¦ ¹İÈ¯
+    // ì‹œë®¬ë ˆì´ì…˜ ì˜ì—­ì˜ ë°•ìŠ¤ í¬ê¸°ë¥¼ ë°˜í™˜
+    public Vector3 GetRenderAreaSize()
+    {
+        return this.renderAreaSize;
+    }
+
+    // ì£¼ì¸ í”Œë ˆì´ì–´ ê·¼ì²˜ì—ì„œ ë¨¸ë¬¼ ë²”ìœ„ë¥¼ ë°˜í™˜
     public Vector3 GetStayOwnerRadius()
     {
         return stayOwnerRadius;
     }
-*/
-    // ¸Ş½¬ ·»´õ °Å¸® ¹İÈ¯
-    public Vector3 GetRenderDistance()
-    {
-        return renderDistance;
-    }
-/*
-    private void SetOwner()
-    {
-        owner = null;
-    }
-
-    public List<Transform> GetPlayerPos()
-    {
-        for (int i = 0; i < playerPos.Count; i++)
-            playerPos[i].position = players[i].position;
-        return playerPos;
-    }*/
     #endregion
 
     #region MonoBehaviour Functions
-    private void Awake()
+    void Start()
     {
-        //ÀÓ½Ã·Î boids GameObject °¡Á®¿À±â
-        boidList = boidSpawner.GetBoidsList();
-/*        for (int i = 0; i < players.Length; i++)
-        {
-            playerPos.Add(players[i].transform);
-        }*/
+      // ìƒì„±ëœ boids GameObject ê°€ì ¸ì˜¤ê¸°
+      boidList = boidSpawner.GetBoidsList();
+      // ë²„í¼ ì´ˆê¸°í™”
+      InitBuffer();
     }
 
-    private void Start()
+    void Update()
     {
-        // ¹öÆÛ ÃÊ±âÈ­
-        InitBuffer();
-        //SetOwner();
+      UpdateBoidTargetPos();
+      Simulation();
+      SyncToCSMesh();
+      SyncToGameObjects();
     }
 
-    private void Update()
+    void OnDestroy()
     {
-/*        if (owner != null)
-        {
-            ownerPos = owner.transform.position;
-        }*/
-        //GetPlayerPos();
-        //MeshsyncGameObject();
-        //FlockingBehavior();
+      // ë²„í¼ í•´ì œ
+      ReleaseBuffer();
     }
 
-    private void OnDestroy()
+    // ë°”ìš´ë“œ ì˜ì—­ ë Œë”ë§
+/*    void OnDrawGizmos()
     {
-        // ¹öÆÛ ÇØÁ¦
-        ReleaseBuffer();
-    }
+      Gizmos.color = Color.cyan;
+      for(int i = 0; i < boidTargetArr.Length; i++)
+        Gizmos.DrawWireCube(boidTargetArr[i].TargetPos, boundarySize);
+    }*/
     #endregion
 
     #region Private Functions
-    // ¹öÆÛ ÃÊ±âÈ­
-    private void InitBuffer()
+    // ë²„í¼ ì´ˆê¸°í™”
+    void InitBuffer()
     {
-        // ¹öÆÛ ÃÊ±âÈ­
-        _boidDataBuffer = new ComputeBuffer(MaxObjectNum, Marshal.SizeOf(typeof(BoidData)));
-        _boidForceBuffer = new ComputeBuffer(MaxObjectNum, Marshal.SizeOf(typeof(Vector3)));
+      // ë²„í¼ ì´ˆê¸°í™”
+      // GPUìƒì—ì„œ ê³„ì‚°í•˜ê¸° ìœ„í•œ ë°ì´í„°ë¥¼ ì €ì¥í•˜ëŠ” ë²„í¼ë¡œ ComputeBufferë¥¼ ì‚¬ìš©
+      // ComputeBuffer: ComputeShaderë¥¼ ìœ„í•´ ë°ì´í„°ë¥¼ ì €ì¥í•˜ëŠ” ë°ì´í„° íƒ€ì…
+      // C# ìŠ¤í¬ë¦½íŠ¸ì—ì„œ GPUìƒì˜ ë©”ëª¨ë¦¬ ë²„í¼ì— ëŒ€í•´ ì½ê¸°ë‚˜ ì“°ê¸°ë¥¼ í•  ìˆ˜ ìˆìŒ
+      // new ComputeBuffer(ë²„í¼ë¥¼ ì´ë£¨ëŠ” ìš”ì†Œ ìˆ˜, ìš”ì†Œ 1ê°œë‹¹ í¬ê¸°(ë°”ì´íŠ¸ë‹¨ìœ„))
+      _boidDataBuffer = new ComputeBuffer(MaxObjectNum, Marshal.SizeOf(typeof(BoidData))); //Marshal.SizeOfë¡œ ë²„í¼ ìš”ì†Œë¡œ ì‚¬ìš©í•  ìë£Œí˜•ì˜ ë°”ì´íŠ¸ ë‹¨ìœ„ í¬ê¸°ë¥¼ ì–»ì„ ìˆ˜ ìˆìŒ
+      _boidForceBuffer = new ComputeBuffer(MaxObjectNum, Marshal.SizeOf(typeof(Vector3)));
+      _boidTargetBuffer = new ComputeBuffer(MaxObjectNum, Marshal.SizeOf(typeof(BoidTarget)));
 
-        // Boid µ¥ÀÌÅÍ, Force ¹öÆÛ¸¦ ÃÊ±âÈ­
-        BoidData[] boidDataArr = new BoidData[MaxObjectNum];
-        Vector3[] forceArr = new Vector3[MaxObjectNum];
-        int j = 0;
-        for (int i = 0; i < MaxObjectNum; ++i)
-        {
-            //if (j >= boidSpawner.boidSpawners.Length)
-            if (j >= boidList.Count)
-                j = 0;
-            forceArr[i] = Vector3.zero;
-            boidDataArr[i].Position = boidList[j].transform.position;
-            Debug.Log(boidList[j].transform.position);
-            //boidDataArr[i].Position = boidSpawner.boidSpawners[j].transform.position;
-            //boidDataArr[i].Position = Random.insideUnitSphere * 1f;
-            boidDataArr[i].Direction = Random.insideUnitSphere * 0.1f;
-            j++;
-            //boidDataArr[i].TargetLocation = boidDataArr[i].Position;
-            //boidDataArr[i].OwnerID = (int)Owners.player1;
-        }
-        _boidDataBuffer.SetData(boidDataArr);
-        _boidForceBuffer.SetData(forceArr);
-        boidDataArr = null;
-        forceArr = null;
+      // Boid ë°ì´í„°, Force ë²„í¼ ì´ˆê¸°í™”
+      forceArr = new Vector3[MaxObjectNum];
+      boidDataArr = new BoidData[MaxObjectNum];
+      boidTargetArr = new BoidTarget[MaxObjectNum];
+      BoidManager boidManager;
+      for (var i = 0; i < MaxObjectNum; i++)
+      {
+        forceArr[i] = Vector3.zero;
+        boidManager = boidList[i].GetComponent<BoidManager>();
+        UpdateBoidTargetArr(i, boidManager.OwnerID, boidManager.TagetPos);
+        UpdateBoidDataArr(i);
+        boidDataArr[i].Velocity = Random.insideUnitSphere * 0.1f;
+      }
+      UpdateBoidForceBuffer();// ë²„í¼ì— ë“¤ì–´ê°ˆ êµ¬ì¡°ì²´ ë°°ì—´ì˜ ê°’ì„ ì„¤ì •
+      UpdateBoidDataBuffer();
+      UpdateBoidTargetBuffer();
     }
 
-    // GameObjectÀÇ À§Ä¡¸¦ ComputeShader¿Í µ¿±âÈ­
-    private void MeshsyncGameObject() {
-        BoidData[] boidDataArr = new BoidData[MaxObjectNum];
-        for (int i = 0; i < boidList.Count; ++i)
-        {
-            boidDataArr[i].Position = boidList[i].transform.position;
-            Debug.Log("MeshsyncGameObject"+boidDataArr[i].Position);
-        }
-        _boidDataBuffer.SetData(boidDataArr);
-        boidDataArr = null;
+    #region Setting Functions
+    public void UpdateBoidDataArr(int index)
+    {
+      Vector3 boidPos;
+      boidPos = boidList[index].transform.position;
+      boidDataArr[index].Position = boidPos;
+    }
+    public void UpdateBoidTargetArr( int index, int ownerID, Vector3 targetPos)
+    {
+      boidTargetArr[index].OwnerID = ownerID;
+      boidTargetArr[index].TargetPos = targetPos;
     }
 
-
-    // ±ºÁı Çàµ¿
-    private void FlockingBehavior()
+    public void UpdateBoidTargetPos() 
     {
-        ComputeShader cs = BoidsCS;
-        int id = -1;
-
-        // ½º·¹µå ±×·ì ¼ö ±¸ÇÏ±â
-        int threadGroupSize = Mathf.CeilToInt(MaxObjectNum / SIMULATION_BLOCK_SIZE); // CeilToInt: ¹İ¿Ã¸²
-
-        // Çàµ¿ °è»ê
-        id = cs.FindKernel("ForceCS"); // Ä¿³Î ID¸¦ °¡Á®¿È
-        // ComputeShader¿¡¼­ ¹öÆÛ³ª ÅØ½ºÃÄ¸¦ ¼³Á¤ÇÒ ¶§ Ä¿³Î ID°¡ ÇÊ¿äÇÔ
-        cs.SetInt("_MaxBoidObjectNum", MaxObjectNum);
-        // ¼Óµµ
-        cs.SetFloat("_MaxSpeed", maxSpeed);
-        cs.SetFloat("_MaxSteerForce", maxSteerForce);
-        // Çàµ¿ ¹üÀ§
-        cs.SetFloat("_CohesionNeighborRadius", cohesionNeighborRadius);
-        cs.SetFloat("_AlignmentNeighborRadius", alignmentNeighborRadius);
-        cs.SetFloat("_SeparateNeighborRadius", separateNeighborRadius);
-        // Çàµ¿ °¡ÁßÄ¡
-        cs.SetFloat("_CohesionWeight", cohesionWeight);
-        cs.SetFloat("_AlignmentWeight", alignmentWeight);
-        cs.SetFloat("_SeparateWeight", separateWeight);
-        // ÇÃ·¹ÀÌ¾î À§Ä¡
-/*        cs.SetVector("_OwnerPos", ownerPos);
-        cs.SetVector("_StayOwnerRadius", stayOwnerRadius);
-        cs.SetFloat("_BoundOwnerWeight", boundOwnerWeight);*/
-        // ¹öÆÛ
-        cs.SetBuffer(id, "_BoidDataBufferWrite", _boidDataBuffer);
-        cs.SetBuffer(id, "_BoidDataBufferRead", _boidDataBuffer);
-        cs.SetBuffer(id, "_BoidForceBufferWrite", _boidForceBuffer);
-        cs.SetBuffer(id, "_BoidForceBufferRead", _boidForceBuffer);
-        cs.Dispatch(id, threadGroupSize, 1, 1); // ComputeShader ½ÇÇà
-        // Dispatch: ComputeShader¿¡ Á¤ÀÇÇÑ Ä¿³ÎÀ» GPU¿¡¼­ ¿¬»êÀ» ¼öÇàÇÏµµ·Ï ¸í·É
-        // Dispatch(Ä¿³Î ID, ½º·¹µå ±×·ì ¼ö)
-
-
-        // °è»êµÈ Á¶Çâ·ÂÀ¸·Î ¼Óµµ¿Í À§Ä¡¸¦ ¾÷µ¥ÀÌÆ®
-        id = cs.FindKernel("IntegrateCS"); // Ä¿³Î ID¸¦ °¡Á®¿È
-        cs.SetFloat("_DeltaTime", Time.deltaTime);
-        //cs.SetVector("_StayOwnerRadius", stayOwnerRadius);
-        cs.SetBuffer(id, "_BoidDataBufferWrite", _boidDataBuffer);
-        cs.SetBuffer(id, "_BoidDataBufferRead", _boidDataBuffer);
-        cs.SetBuffer(id, "_BoidForceBufferWrite", _boidForceBuffer);
-        cs.SetBuffer(id, "_BoidForceBufferRead", _boidForceBuffer);
-        cs.Dispatch(id, threadGroupSize, 1, 1); // ComputeShader ½ÇÇà 
+      for (int i = 0; i < boidList.Count; i++) {
+        boidTargetArr[i].OwnerID = boidList[i].GetComponent<BoidManager>().GetOwnerID();
+        boidTargetArr[i].TargetPos = boidList[i].GetComponent<BoidManager>().GetTargetPos();      
+      }
+      UpdateBoidTargetBuffer();
     }
 
-    // ¹öÆÛ ÇØÁ¦
-    private void ReleaseBuffer()
+    public void UpdateCSMeshPos(int index)
+    {  
+      _boidDataBuffer.GetData(boidDataArr);
+      boidList[index].transform.position = boidDataArr[index].Position;
+    }
+
+    private void SyncToGameObjects()
     {
-        if (_boidDataBuffer != null)
-        {
-            _boidDataBuffer.Release();
-            _boidDataBuffer = null;
-        }
-        if (_boidForceBuffer != null)
-        {
-            _boidForceBuffer.Release();
-            _boidForceBuffer = null;
-        }
+      for (int i = 0; i < boidList.Count; i++)
+      {
+        UpdateBoidDataArr(i);
+      }
+      UpdateBoidDataBuffer();
+    }
+
+    private void SyncToCSMesh()
+    {
+      for (int i = 0; i < MaxObjectNum; i++)
+      {
+        UpdateCSMeshPos(i);
+      }
+    }
+
+    private void UpdateBoidDataBuffer()
+    {
+      _boidDataBuffer.SetData(boidDataArr);
+    }
+    private void UpdateBoidForceBuffer()
+    {
+      _boidForceBuffer.SetData(forceArr);
+    }
+    private void UpdateBoidTargetBuffer()
+    {
+      _boidTargetBuffer.SetData(boidTargetArr);
     }
     #endregion
 
-}
+    // Boidsì‹œë®¬ë ˆì´ì…˜
+    void Simulation()
+    {
+      ComputeShader cs = boidsCS;
+      int id = -1;
+
+      // ìŠ¤ë ˆë“œ ê·¸ë£¹ ìˆ˜ êµ¬í•˜ê¸°
+      int threadGroupSize = Mathf.CeilToInt(MaxObjectNum / SIMULATION_BLOCK_SIZE);
+
+      id = cs.FindKernel("ForceCS"); 
+
+      cs.SetInt("_MaxBoidObjectNum", MaxObjectNum);
+
+      cs.SetFloat("_MaxSpeed", maxSpeed);
+      cs.SetFloat("_MaxSteerForce", maxSteerForce);
+
+      cs.SetFloat("_CohesionNeighborhoodRadius", cohesionNeighborhoodRadius);
+      cs.SetFloat("_AlignmentNeighborhoodRadius", alignmentNeighborhoodRadius);
+      cs.SetFloat("_SeparateNeighborhoodRadius", separateNeighborhoodRadius);
+      
+      cs.SetFloat("_SeparateWeight", separateWeight);
+      cs.SetFloat("_CohesionWeight", cohesionWeight);
+      cs.SetFloat("_AlignmentWeight", alignmentWeight);
+
+      cs.SetFloat("_AvoidWallWeight", AvoidWallWeight);
+      cs.SetVector("_BoundarySize", boundarySize);
+
+      cs.SetBuffer(id, "_BoidDataBufferRead", _boidDataBuffer);
+      cs.SetBuffer(id, "_BoidForceBufferWrite", _boidForceBuffer);
+      cs.Dispatch(id, threadGroupSize, 1, 1); 
+
+      id = cs.FindKernel("IntegrateCS"); 
+      cs.SetFloat("_DeltaTime", Time.deltaTime);
+      cs.SetBuffer(id, "_BoidDataBufferWrite", _boidDataBuffer);
+      cs.SetBuffer(id, "_BoidForceBufferRead", _boidForceBuffer);
+      cs.SetBuffer(id, "_BoidTargetBufferRead", _boidTargetBuffer);
+      //cs.SetBuffer(id, "_BoidTargetBufferWrite", _boidTargetBuffer);
+      cs.Dispatch(id, threadGroupSize, 1, 1); 
+    }
+
+    // ë²„í¼ í•´ì œ
+    void ReleaseBuffer()
+    {
+      if (_boidDataBuffer != null)
+      {
+        _boidDataBuffer.Release();
+        _boidDataBuffer = null;
+      }
+
+      if (_boidForceBuffer != null)
+      {
+        _boidForceBuffer.Release();
+        _boidForceBuffer = null;
+      }
+    }
+    #endregion
+  } // class
+} // namespace

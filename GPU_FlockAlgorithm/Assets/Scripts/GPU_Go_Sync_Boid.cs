@@ -42,7 +42,7 @@ public class GPU_Go_Sync_Boid : MonoBehaviour
     public int MaxObjectNum { get { return maxObjectNum; } }
 
     [Header("렌더 거리")]
-    [SerializeField] private Vector3 renderDistance = new Vector3(20f, 20f, 20f);
+    [SerializeField] private Vector3 renderDistance = new Vector3(20f, 2f, 20f);
 
     [Header("최대 속도와 힘")]
     // 최대 속도
@@ -144,7 +144,7 @@ public class GPU_Go_Sync_Boid : MonoBehaviour
     {
         // 메쉬 렌더링 범위
         Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(transform.position, renderDistance.x);
+        Gizmos.DrawWireCube(transform.position, renderDistance);
     }
     #endregion
 
@@ -155,7 +155,7 @@ public class GPU_Go_Sync_Boid : MonoBehaviour
         _boidDataBuffer = new ComputeBuffer(MaxObjectNum, Marshal.SizeOf(typeof(BoidData)));
         _boidForceBuffer = new ComputeBuffer(MaxObjectNum, Marshal.SizeOf(typeof(Vector3)));
         _boidOwnerBuffer = new ComputeBuffer(MaxObjectNum, Marshal.SizeOf(typeof(BoidOwner)));
-
+        
         // Boid 데이터, Force 버퍼 업데이트 용 배열
         forceArr = new Vector3[maxObjectNum];
         boidDataArr = new BoidData[maxObjectNum];
